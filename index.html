@@ -18,7 +18,7 @@
             <h2>Sisselogimine</h2>
             <input type="email" id="login-email" placeholder="E-mail">
             <input type="password" id="login-password" placeholder="Parool">
-            <button onclick="login()">Logi sisse</button>
+            <button type="button" onclick="login()">Logi sisse</button>
             <p>Pole kontot? <a href="#" onclick="showRegister()">Registreeru</a></p>
         </div>
         <div id="register-form" style="display:none;">
@@ -31,12 +31,13 @@
                 <option value="forvarder">Forvarder</option>
             </select>
             <input type="text" id="reg-machine-name" placeholder="Masina nimi">
-            <button onclick="register()">Registreeru</button>
+            <button type="button" onclick="register()">Registreeru</button>
             <p>Juba on konto? <a href="#" onclick="showLogin()">Logi sisse</a></p>
         </div>
     </div>
 
     <script>
+        // Funktsioonid vormide vahetamiseks
         function showRegister() {
             document.getElementById('login-form').style.display = 'none';
             document.getElementById('register-form').style.display = 'block';
@@ -46,13 +47,24 @@
             document.getElementById('register-form').style.display = 'none';
         }
 
+        // Sisselogimine
         function login() {
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
+            console.log('Login attempted with:', email);
             auth.signInWithEmailAndPassword(email, password)
-                .catch(error => alert(error.message));
+                .then(userCredential => {
+                    console.log('Login success', userCredential.user);
+                    // Suunamine toimub onAuthStateChanged kaudu, aga võime ka ise suunata
+                    // Siiski laseme kuulajal teha töö
+                })
+                .catch(error => {
+                    console.error('Login error', error);
+                    alert('Viga sisselogimisel: ' + error.message);
+                });
         }
 
+        // Registreerimine
         function register() {
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value;
@@ -69,17 +81,52 @@
                         machineType: machineType,
                         machineName: machineName,
                         role: 'user',
-                        active: false, // ootel
+                        active: false,
                         trialEnds: null,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 })
                 .then(() => {
                     alert('Registreerimine õnnestus! Oota admini kinnitust.');
-                    auth.signOut(); // Logi välja, et ei saaks sisse ilma kinnituseta
+                    return auth.signOut(); // Logi välja
                 })
-                .catch(error => alert(error.message));
+                .catch(error => {
+                    console.error('Registration error', error);
+                    alert('Viga registreerimisel: ' + error.message);
+                });
         }
+
+        // Kuula sisselogimise olekut
+        auth.onAuthStateChanged(user => {
+            console.log('Auth state changed:', user);
+            if (user) {
+                // Kasutaja on sisse logitud, suuna vastavalt rollile
+                db.collection('users').doc(user.uid).get().then(doc => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        const currentPath = window.location.pathname;
+                        if (userData.role === 'admin' && !currentPath.includes('admin.html')) {
+                            window.location.href = 'admin.html';
+                        } else if (userData.role !== 'admin' && !currentPath.includes('dashboard.html')) {
+                            window.location.href = 'dashboard.html';
+                        }
+                        // Kui juba õigel lehel, ei tee midagi
+                    } else {
+                        console.warn('User document missing, signing out');
+                        auth.signOut();
+                    }
+                }).catch(err => {
+                    console.error('Error getting user doc', err);
+                });
+            } else {
+                // Pole sisse logitud, näita sisselogimisvormi (kui pole juba index.html)
+                // Aga kui oleme mõnel muul lehel, suuname index.html
+                const currentPath = window.location.pathname;
+                if (!currentPath.includes('index.html')) {
+                    window.location.href = 'index.html';
+                }
+            }
+        });
     </script>
 </body>
 </html>
