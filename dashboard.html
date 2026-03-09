@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metsatööde päevik - Töölaud</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+</head>
+<body>
+    <div class="header">
+        <span id="user-info"></span>
+        <button onclick="logout()">Logi välja</button>
+    </div>
+    <div class="container">
+        <h1>Töölaud</h1>
+        <div id="machine-type-message"></div>
+        
+        <!-- Harvesteri vorm -->
+        <div id="harvester-form" style="display:none;">
+            <h2>Lisa langi andmed</h2>
+            <form id="harvester-entry">
+                <input type="date" id="h-date" required>
+                <input type="text" id="h-lang" placeholder="Langi nimi/number" required>
+                <input type="number" id="h-trees" placeholder="Puude arv" required>
+                <input type="number" id="h-volume" placeholder="Tihumeetrid (m³)" step="0.01" required>
+                <input type="number" id="h-fuel" placeholder="Kütus (liitrit)" step="0.1" required>
+                <div>
+                    <label>GPS asukoht:</label>
+                    <button type="button" onclick="getLocation('harvester')">Võta asukoht</button>
+                    <span id="h-gps"></span>
+                    <input type="hidden" id="h-lat">
+                    <input type="hidden" id="h-lng">
+                </div>
+                <button type="submit">Salvesta</button>
+            </form>
+            <hr>
+            <h3>Varasemad langid</h3>
+            <div id="harvester-entries"></div>
+        </div>
+
+        <!-- Forvarderi vorm -->
+        <div id="forvarder-form" style="display:none;">
+            <h2>Lisa koorma andmed</h2>
+            <form id="forvarder-entry">
+                <input type="date" id="f-date" required>
+                <input type="text" id="f-lang" placeholder="Langi nimi/number" required>
+                <input type="text" id="f-load-number" placeholder="Koorma number" required>
+                <div>
+                    <label>Sirmi kõrgus (m) - osa 1:</label>
+                    <input type="number" id="f-height1" step="0.01" required>
+                </div>
+                <div>
+                    <label>Sirmi kõrgus (m) - osa 2:</label>
+                    <input type="number" id="f-height2" step="0.01" required>
+                </div>
+                <div>
+                    <label>Sirmi laius (m) - osa 1:</label>
+                    <input type="number" id="f-width1" step="0.01" required>
+                </div>
+                <div>
+                    <label>Sirmi laius (m) - osa 2:</label>
+                    <input type="number" id="f-width2" step="0.01" required>
+                </div>
+                <input type="number" id="f-length" placeholder="Pikkus (m)" step="0.01" required>
+                <input type="number" id="f-coeff" placeholder="Koefitsent" step="0.01" value="1.0">
+                <input type="number" id="f-fuel" placeholder="Kütus (liitrit)" step="0.1" required>
+                <div>
+                    <label>GPS asukoht:</label>
+                    <button type="button" onclick="getLocation('forvarder')">Võta asukoht</button>
+                    <span id="f-gps"></span>
+                    <input type="hidden" id="f-lat">
+                    <input type="hidden" id="f-lng">
+                </div>
+                <button type="submit">Salvesta</button>
+            </form>
+            <hr>
+            <h3>Varasemad koormad</h3>
+            <div id="forvarder-entries"></div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
