@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin paneel</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+</head>
+<body>
+    <div class="header">
+        <span>Admin paneel</span>
+        <button onclick="logout()">Logi välja</button>
+    </div>
+    <div class="container">
+        <h1>Kasutajate haldus</h1>
+        <div id="users-list"></div>
+    </div>
+    <script src="admin.js"></script>
+</body>
+</html>
