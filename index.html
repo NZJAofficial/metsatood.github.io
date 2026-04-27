@@ -2,131 +2,602 @@
 <html lang="et">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metsatööde päevik - Sisselogimine</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>MetsaMasin - koorma ja langi arvestus</title>
+    <!-- PWA manifest (sisseehitatud) -->
+    <link rel="manifest" href="data:application/manifest+json,{ 
+        \"name\": \"MetsaMasin\", 
+        \"short_name\": \"MetsaMasin\", 
+        \"description\": \"Koorma maht ja langide logi\", 
+        \"start_url\": \".\", 
+        \"display\": \"standalone\", 
+        \"theme_color\": \"#2c3e2b\", 
+        \"background_color\": \"#0e2a1a\", 
+        \"icons\": [ 
+            { \"src\": \"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23386a2c'/%3E%3Cpath fill='white' d='M50 20 L65 45 L55 45 L55 70 L45 70 L45 45 L35 45 Z'/%3E%3C/svg%3E\", \"sizes\": \"any\", \"type\": \"image/svg+xml\" }
+        ] 
+    }">
+    <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEHSURBVHhe7dOxDcAgEETBzpR0SMU0lJCFmRzSkAj+9LpDE0zyrFk754SICGmlDSEhhIQYIYQQYkSIEGJECCFGhBAhxogQIsSIECLEiBAixogQIsSIECLEiBAixogQIsSIECLEiBAixogQIsSIECLEiBAixogQIsSIECLEiBAixogQIsSIECLEiBAixogQIsSIECLEiBAixogQIsSIECJEyFdDSD1DQogIIRkCLCOEiBAiRIgIISJEEBGEkLeEhJBPCSEkZIhICIjIW0LIEDIyQogRIUSIkCGEkCFEiJAhhJAhRIgQIoSYCBkiRIgQIoSICBlCCBlChKRbQoSIEBFCiAgZIn9i9g98ZnoQMiXGlpMq1vUAAAAASUVORK5CYII=">
+    <style>
+        /* stiilid – sama mis eelmises, lisan vaid väikseid täiendusi */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', sans-serif; }
+        body { background: #1a2a1f; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        #loadingScreen { position: fixed; top:0; left:0; width:100%; height:100%; background:#0e2a1a; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; z-index:1000; transition:opacity 0.8s; }
+        .logo-animation { text-align:center; }
+        .logo-icon { font-size:80px; animation:bounceTree 1.6s infinite; display:inline-block; filter:drop-shadow(0 8px 12px rgba(0,0,0,0.3)); }
+        .loader-bar { width:200px; height:4px; background:#3a5e3a; border-radius:4px; overflow:hidden; }
+        .loader-fill { width:0%; height:100%; background:#c5f2b3; animation:loadFill 1.4s ease-out forwards; }
+        @keyframes loadFill { 0%{width:0%} 100%{width:100%} }
+        @keyframes bounceTree { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        .app-container { background:#fefae0; border-radius:48px 32px; max-width:1300px; width:100%; overflow:hidden; }
+        .nav-tabs { display:flex; flex-wrap:wrap; background:#2c3e2b; padding:12px 16px 0; gap:4px; }
+        .tab-btn { background:#3b5a3a; border:none; padding:12px 20px; font-weight:600; border-radius:24px 24px 0 0; color:#e9f5db; cursor:pointer; display:flex; gap:8px; }
+        .tab-btn.active { background:#fefae0; color:#2d4a22; }
+        .tab-content { display:none; padding:24px 22px; background:#fefae0; animation:fade 0.2s; }
+        .tab-content.active { display:block; }
+        @keyframes fade { from{opacity:0; transform:translateY(6px)} to{opacity:1} }
+        .auth-card { background:#fefae0; max-width:500px; margin:60px auto; padding:32px; border-radius:40px; }
+        .form-group { margin-bottom:18px; }
+        label { font-weight:600; color:#2c3e2b; display:block; margin-bottom:6px; }
+        input, select, textarea { width:100%; padding:12px 16px; border:1px solid #bbcba8; border-radius:28px; background:white; font-size:1rem; }
+        button { background:#386a2c; border:none; color:white; font-weight:bold; padding:12px 24px; border-radius:40px; cursor:pointer; transition:0.2s; }
+        button:hover { background:#2b5522; transform:scale(0.97); }
+        .btn-secondary { background:#7f8c6d; }
+        .btn-small { padding:6px 12px; font-size:0.8rem; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .card-info { background:#e7edd9; border-radius:28px; padding:18px; margin-top:20px; }
+        .log-item { background:white; border-radius:24px; padding:12px 16px; margin-bottom:10px; border-left:8px solid #5a8f4c; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+        .log-details { flex:1; }
+        .log-actions { display:flex; gap:8px; }
+        .summary-stats { background:#d4e2c3; border-radius:28px; padding:16px; margin-bottom:20px; }
+        .badge { background:#386a2c; color:white; border-radius:40px; padding:6px 12px; font-size:0.75rem; display:inline-block; }
+        .checkbox-select { width:20px; height:20px; margin-right:12px; cursor:pointer; }
+        .flex-between { display:flex; justify-content:space-between; align-items:center; }
+        .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:1200; }
+        .modal-card { background:#fefae0; max-width:480px; width:90%; border-radius:48px; padding:24px; }
+        @media (max-width:760px) { .tab-btn span:not(.icon-only) { display:none; } .tab-btn { padding:12px 16px; } .grid-2 { grid-template-columns:1fr; } .log-item { flex-direction:column; align-items:flex-start; } }
+    </style>
 </head>
 <body>
-    <div class="container" id="login-container">
-        <h1>Metsatööde päevik</h1>
-        <div id="login-form">
-            <h2>Sisselogimine</h2>
-            <input type="email" id="login-email" placeholder="E-mail">
-            <input type="password" id="login-password" placeholder="Parool">
-            <button type="button" onclick="login()">Logi sisse</button>
-            <p>Pole kontot? <a href="#" onclick="showRegister()">Registreeru</a></p>
-        </div>
-        <div id="register-form" style="display:none;">
-            <h2>Registreerumine</h2>
-            <input type="text" id="reg-name" placeholder="Täisnimi">
-            <input type="email" id="reg-email" placeholder="E-mail">
-            <input type="password" id="reg-password" placeholder="Parool">
-            <select id="reg-machine-type">
-                <option value="harvester">Harvester</option>
-                <option value="forvarder">Forvarder</option>
-            </select>
-            <input type="text" id="reg-machine-name" placeholder="Masina nimi">
-            <button type="button" onclick="register()">Registreeru</button>
-            <p>Juba on konto? <a href="#" onclick="showLogin()">Logi sisse</a></p>
-        </div>
-    </div>
+<div id="loadingScreen">
+    <div class="logo-animation"><div class="logo-icon">🌲🪵</div><div class="logo-text">MetsaMasin</div><div style="color:#cbdab6;">metsamehe tark tööriist</div></div>
+    <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+<div id="appRoot" style="display:none;"></div>
+<script>
+    (function(){
+        // ---------- CONSTANTS ----------
+        const STORAGE_USER = "metsa_current_user";
+        const STORAGE_LOGS = "metsa_logs";
+        const STORAGE_ALL_USERS = "metsa_users_list";
+        const puuliigid = ["MA","KS","HB","PI","LM","LV","KU","PN","SP","OPK","LPK","HAKE"];
+        const sortimendid = ["PALK","PEENPALK","SAEPALK","PABER","KÜTE","SORDITU","VINEER"];
+        
+        let currentUser = null;
+        let allLogs = [];
+        let activeTab = "loadCalc";
+        let selectedLogIds = new Set(); // jagamiseks mitu kirjet
 
-    <script>
-        // Funktsioonid vormide vahetamiseks
-        function showRegister() {
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('register-form').style.display = 'block';
-        }
-        function showLogin() {
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('register-form').style.display = 'none';
-        }
-
-        // Sisselogimine
-        function login() {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            console.log('Login attempted with:', email);
-            auth.signInWithEmailAndPassword(email, password)
-                .then(userCredential => {
-                    console.log('Login success', userCredential.user);
-                    // Suunamine toimub onAuthStateChanged kaudu, aga võime ka ise suunata
-                    // Siiski laseme kuulajal teha töö
-                })
-                .catch(error => {
-                    console.error('Login error', error);
-                    alert('Viga sisselogimisel: ' + error.message);
-                });
-        }
-
-        // Registreerimine
-        function register() {
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value;
-            const password = document.getElementById('reg-password').value;
-            const machineType = document.getElementById('reg-machine-type').value;
-            const machineName = document.getElementById('reg-machine-name').value;
-
-            auth.createUserWithEmailAndPassword(email, password)
-                .then(cred => {
-                    // Lisa kasutaja andmed Firestore'i, ootel kinnitus
-                    return db.collection('users').doc(cred.user.uid).set({
-                        name: name,
-                        email: email,
-                        machineType: machineType,
-                        machineName: machineName,
-                        role: 'user',
-                        active: false,
-                        trialEnds: null,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                })
-                .then(() => {
-                    alert('Registreerimine õnnestus! Oota admini kinnitust.');
-                    return auth.signOut(); // Logi välja
-                })
-                .catch(error => {
-                    console.error('Registration error', error);
-                    alert('Viga registreerimisel: ' + error.message);
-                });
-        }
-
-        // Kuula sisselogimise olekut
-        auth.onAuthStateChanged(user => {
-            console.log('Auth state changed:', user);
-            if (user) {
-                // Kasutaja on sisse logitud, suuna vastavalt rollile
-                db.collection('users').doc(user.uid).get().then(doc => {
-                    if (doc.exists) {
-                        const userData = doc.data();
-                        const currentPath = window.location.pathname;
-                        if (userData.role === 'admin' && !currentPath.includes('admin.html')) {
-                            window.location.href = 'admin.html';
-                        } else if (userData.role !== 'admin' && !currentPath.includes('dashboard.html')) {
-                            window.location.href = 'dashboard.html';
-                        }
-                        // Kui juba õigel lehel, ei tee midagi
-                    } else {
-                        console.warn('User document missing, signing out');
-                        auth.signOut();
-                    }
-                }).catch(err => {
-                    console.error('Error getting user doc', err);
-                });
-            } else {
-                // Pole sisse logitud, näita sisselogimisvormi (kui pole juba index.html)
-                // Aga kui oleme mõnel muul lehel, suuname index.html
-                const currentPath = window.location.pathname;
-                if (!currentPath.includes('index.html')) {
-                    window.location.href = 'index.html';
-                }
+        // ---------- HELPER ----------
+        function saveAll(){
+            localStorage.setItem(STORAGE_LOGS, JSON.stringify(allLogs));
+            if(currentUser){
+                let users = JSON.parse(localStorage.getItem(STORAGE_ALL_USERS) || '[]');
+                let idx = users.findIndex(u => u.email === currentUser.email);
+                if(idx !== -1) users[idx] = currentUser;
+                else users.push(currentUser);
+                localStorage.setItem(STORAGE_ALL_USERS, JSON.stringify(users));
+                localStorage.setItem(STORAGE_USER, JSON.stringify(currentUser));
             }
-        });
-    </script>
+        }
+        
+        function escapeHtml(str){
+            if(!str) return '';
+            return str.replace(/[&<>]/g, function(m){
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        // ---------- JAGAMISE FUNKTSIOONID ----------
+        async function shareSingleLog(log){
+            const dataStr = JSON.stringify(log, null, 2);
+            const shareData = {
+                title: `Lang: ${log.langiNumber}`,
+                text: `${log.langiNumber} | ${log.puuliik} ${log.sortiment} | ${log.tihud} m³ | ${new Date(log.date).toLocaleString()}`,
+                files: undefined
+            };
+            // Proovi jagada tekstina
+            if(navigator.share){
+                try {
+                    await navigator.share(shareData);
+                    return;
+                } catch(e) { console.log("Share failed, fallback copy"); }
+            }
+            // Kui share ei toimi, kopeeri tekst lõikelauale
+            await navigator.clipboard.writeText(shareData.text);
+            alert("Kirje kopeeritud lõikelauale! Saad selle teisele inimesele saata (nt meilis, sõnumis).");
+        }
+        
+        async function shareMultipleLogs(logsArray){
+            if(logsArray.length === 0) return alert("Pole valitud ühtegi kirjet!");
+            const exportObj = { exportedBy: currentUser?.email || "anonymous", date: new Date().toISOString(), logs: logsArray };
+            const jsonStr = JSON.stringify(exportObj, null, 2);
+            // Proovi jagada failina (kui toetab)
+            if(navigator.share && navigator.canShare && navigator.canShare({ files: [] })){
+                const blob = new Blob([jsonStr], {type: 'application/json'});
+                const file = new File([blob], `metsamasin_${Date.now()}.json`, {type: 'application/json'});
+                try {
+                    await navigator.share({ title: "MetsaMasin - jagatud langid", files: [file] });
+                    return;
+                } catch(e) { console.log(e); }
+            }
+            // Fallback: kopeeri JSON lõikelauale
+            await navigator.clipboard.writeText(jsonStr);
+            alert("Valitud kirjed kopeeriti JSON kujul lõikelauale. Saad need kleepida ja saata teisele inimesele.");
+        }
+        
+        // Ekspordi kõik andmed failina
+        function exportAllLogs(){
+            const data = { exportedBy: currentUser?.email, date: new Date().toISOString(), allLogs: allLogs };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `metsamasin_kokku_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Impordi failist (liidab olemasolevatele, duplikaate ID järgi ei lisa)
+        function importLogsFromFile(file){
+            const reader = new FileReader();
+            reader.onload = function(e){
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    let newLogs = [];
+                    if(imported.allLogs) newLogs = imported.allLogs;
+                    else if(imported.logs) newLogs = imported.logs;
+                    else if(Array.isArray(imported)) newLogs = imported;
+                    else newLogs = [imported];
+                    if(!Array.isArray(newLogs)) newLogs = [];
+                    // Lisa ainult need, mille ID pole juba olemas
+                    let addedCount = 0;
+                    for(let log of newLogs){
+                        if(log.id && !allLogs.some(ex => ex.id === log.id)){
+                            allLogs.push(log);
+                            addedCount++;
+                        } else if(!log.id){
+                            // vana formaat, anname uue ID
+                            log.id = Date.now() + Math.random();
+                            allLogs.push(log);
+                            addedCount++;
+                        }
+                    }
+                    if(addedCount > 0){
+                        saveAll();
+                        alert("Imporditud " + addedCount + " uut kirjet!");
+                        if(activeTab === 'history') showTab('history');
+                    } else {
+                        alert("Uusi kirjeid ei lisatud (kõik juba olemas).");
+                    }
+                } catch(err){
+                    alert("Vigane faili formaat!");
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // ---------- RENDER FUNKTSIOONID ----------
+        function renderLoadCalc(){
+            return `
+                <h2>📐 Koorma mahu arvutus</h2>
+                <div class="grid-2">
+                    <div class="form-group"><label>Pikkus (m)</label><input id="loadPikkus" type="number" step="any" value="4.0"></div>
+                    <div class="form-group"><label>Laius (m)</label><input id="loadLaius" type="number" step="any" value="2.5"></div>
+                    <div class="form-group"><label>Kõrgus (m)</label><input id="loadKorgus" type="number" step="any" value="1.8"></div>
+                    <div class="form-group"><label>Koefitsient</label><input id="loadKoef" type="number" step="any" value="0.85"></div>
+                </div>
+                <button id="calcLoadBtn">🧮 Arvuta maht</button>
+                <div id="loadResult" class="card-info">Tulemus: - m³</div>
+                <div class="card-info">
+                    <strong>➕ Lisa see langile kiirelt</strong>
+                    <div class="form-group"><label>Langinumber</label><input id="quickLangNumber" placeholder="nt LANG-101"></div>
+                    <div class="form-group"><label>Puuliik</label><select id="quickPuuliik">${puuliigid.map(p=>`<option>${p}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Sortiment</label><select id="quickSortiment">${sortimendid.map(s=>`<option>${s}</option>`).join('')}</select></div>
+                    <button id="quickAddFromLoad">➕ Lisa kirje</button>
+                </div>
+            `;
+        }
+        
+        function renderLogEntry(){
+            return `
+                <h2>📋 Uue langi andmed</h2>
+                <div class="grid-2">
+                    <div class="form-group"><label>Langinumber *</label><input id="logLangNumber" placeholder="LANG-12"></div>
+                    <div class="form-group"><label>Puuliik</label><select id="logPuuliik">${puuliigid.map(p=>`<option>${p}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Sortiment</label><select id="logSortiment">${sortimendid.map(s=>`<option>${s}</option>`).join('')}</select></div>
+                    <div class="form-group"><label>Tihud (m³)</label><input type="number" step="any" id="logTihud" placeholder="0.00"></div>
+                </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <button id="saveLogEntryBtn">💾 Salvesta kirje</button>
+                    <button id="openCalcModalBtn" class="btn-secondary">🧮 Tihude kalkulaator</button>
+                </div>
+                <div class="card-info"><strong>Viimati lisatud:</strong> <span id="lastEntryPreview">-</span></div>
+            `;
+        }
+        
+        function renderHistory(){
+            // Grupeeri kokkuvõte
+            const grouped = new Map();
+            allLogs.forEach(log => {
+                if(!grouped.has(log.langiNumber)) grouped.set(log.langiNumber, []);
+                grouped.get(log.langiNumber).push(log);
+            });
+            let summaryHtml = `<div class="summary-stats"><h3>📌 Kokkuvõte langide kaupa</h3>`;
+            if(grouped.size === 0) summaryHtml += `<p>Pole ühtegi kirjet.</p>`;
+            for(let [langi, logs] of grouped.entries()){
+                const sumTihud = logs.reduce((acc, l) => acc + (Number(l.tihud) || 0), 0);
+                summaryHtml += `<div><strong>🌲 ${langi}</strong> – kokku ${sumTihud.toFixed(2)} tihu, ${logs.length} kirjet</div>`;
+            }
+            summaryHtml += `</div>`;
+            
+            // Valikud ja nupud
+            summaryHtml += `<div class="flex-between" style="margin-bottom: 16px;"><h3>📋 Kõik kirjed</h3>
+                            <div><button id="shareSelectedBtn" class="btn-small">📤 Saada valitud</button>
+                            <button id="clearAllHistoryBtn" class="btn-small" style="background:#8b5a4b;">🗑 Kustuta kõik</button></div></div>`;
+            summaryHtml += `<div id="allLogsList">`;
+            if(allLogs.length === 0){
+                summaryHtml += `<p>Andmed puuduvad. Lisa esimene lang!</p>`;
+            } else {
+                [...allLogs].reverse().forEach(log => {
+                    const isChecked = selectedLogIds.has(log.id);
+                    summaryHtml += `
+                        <div class="log-item">
+                            <input type="checkbox" class="checkbox-select" data-id="${log.id}" ${isChecked ? 'checked' : ''}>
+                            <div class="log-details">
+                                <div><strong>${escapeHtml(log.langiNumber)}</strong> <span class="badge">${log.puuliik} | ${log.sortiment}</span></div>
+                                <div>📦 ${Number(log.tihud).toFixed(2)} m³ | 📅 ${new Date(log.date).toLocaleString()}</div>
+                            </div>
+                            <div class="log-actions">
+                                <button class="btn-small share-single-btn" data-id="${log.id}">📤 Jaga</button>
+                                <button class="btn-small delete-log-btn" data-id="${log.id}">🗑 Kustuta</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            summaryHtml += `</div>`;
+            return summaryHtml;
+        }
+        
+        function renderProfile(){
+            if(!currentUser) return '';
+            return `
+                <h2>👥 Minu andmed ja varundamine</h2>
+                <div class="form-group"><label>Nimi</label><input id="editName" value="${escapeHtml(currentUser.name)}"></div>
+                <div class="form-group"><label>E-post</label><input id="editEmail" value="${escapeHtml(currentUser.email)}"></div>
+                <div class="form-group"><label>Masin</label><input id="editMachine" value="${escapeHtml(currentUser.masin||'')}"></div>
+                <div class="form-group"><label>Töökoht/Kool</label><input id="editWork" value="${escapeHtml(currentUser.tookoht||'')}"></div>
+                <div class="form-group"><label>Uus parool (tühjaks jäta, kui ei muuda)</label><input type="password" id="editPassword"></div>
+                <button id="saveProfileBtn">💾 Salvesta profiil</button>
+                <hr>
+                <h3>📁 Andmete varundamine ja jagamine</h3>
+                <button id="exportAllBtn" class="btn-secondary">📀 Ekspordi kõik langid (JSON fail)</button>
+                <div style="margin-top:12px;"><label>Impordi langid JSON failist:</label><input type="file" id="importFileInput" accept=".json"></div>
+                <hr>
+                <button id="logoutBtn" style="background:#826c5c;">🚪 Logi välja</button>
+            `;
+        }
+        
+        // ---------- ATTACH FUNKTSIOONID ----------
+        function attachCalcEvents(){
+            document.getElementById('calcLoadBtn')?.addEventListener('click', () => {
+                const p = parseFloat(document.getElementById('loadPikkus').value) || 0;
+                const l = parseFloat(document.getElementById('loadLaius').value) || 0;
+                const k = parseFloat(document.getElementById('loadKorgus').value) || 0;
+                const koef = parseFloat(document.getElementById('loadKoef').value) || 1;
+                const vol = p * l * k * koef;
+                document.getElementById('loadResult').innerHTML = `📊 Tulemus: ${vol.toFixed(2)} m³`;
+            });
+            document.getElementById('quickAddFromLoad')?.addEventListener('click', () => {
+                const p = parseFloat(document.getElementById('loadPikkus').value) || 0;
+                const l = parseFloat(document.getElementById('loadLaius').value) || 0;
+                const k = parseFloat(document.getElementById('loadKorgus').value) || 0;
+                const koef = parseFloat(document.getElementById('loadKoef').value) || 1;
+                const vol = p * l * k * koef;
+                const langiNumber = document.getElementById('quickLangNumber').value.trim();
+                if(!langiNumber) { alert("Sisesta langinumber!"); return; }
+                const newLog = {
+                    id: Date.now() + Math.random(),
+                    langiNumber: langiNumber,
+                    puuliik: document.getElementById('quickPuuliik').value,
+                    sortiment: document.getElementById('quickSortiment').value,
+                    tihud: vol,
+                    date: new Date().toISOString()
+                };
+                allLogs.push(newLog);
+                saveAll();
+                alert("Kirje lisatud!");
+                showTab('history');
+            });
+        }
+        
+        function attachLogEvents(){
+            document.getElementById('saveLogEntryBtn')?.addEventListener('click', () => {
+                const langi = document.getElementById('logLangNumber').value.trim();
+                if(!langi) { alert("Langinumber on kohustuslik!"); return; }
+                const tihud = parseFloat(document.getElementById('logTihud').value) || 0;
+                const newLog = {
+                    id: Date.now() + Math.random(),
+                    langiNumber: langi,
+                    puuliik: document.getElementById('logPuuliik').value,
+                    sortiment: document.getElementById('logSortiment').value,
+                    tihud: tihud,
+                    date: new Date().toISOString()
+                };
+                allLogs.push(newLog);
+                saveAll();
+                document.getElementById('lastEntryPreview').innerHTML = `${langi} | ${newLog.puuliik} ${tihud.toFixed(2)} m³`;
+                document.getElementById('logLangNumber').value = '';
+                document.getElementById('logTihud').value = '';
+                alert("Salvestatud!");
+                showTab('history');
+            });
+            document.getElementById('openCalcModalBtn')?.addEventListener('click', () => showTihudeKalkulaatorModal());
+        }
+        
+        function showTihudeKalkulaatorModal(){
+            const modalDiv = document.createElement('div');
+            modalDiv.className = 'modal';
+            modalDiv.innerHTML = `
+                <div class="modal-card">
+                    <h3>📐 Palgi / tihude kalkulaator</h3>
+                    <div class="form-group"><label>Palkide arv</label><input id="modalArv" type="number" value="10"></div>
+                    <div class="form-group"><label>Keskmine diameeter (cm)</label><input id="modalDiam" type="number" step="any" value="30"></div>
+                    <div class="form-group"><label>Palgi pikkus (m)</label><input id="modalPikk" type="number" step="any" value="4.0"></div>
+                    <button id="modalCalcBtn">Arvuta maht</button>
+                    <div id="modalResult" class="card-info" style="margin:12px 0;">-</div>
+                    <button id="useModalResultBtn">✅ Kasuta logi vormis</button>
+                    <button id="closeModalBtn" style="background:#9e7e6b;">Sulge</button>
+                </div>
+            `;
+            document.body.appendChild(modalDiv);
+            document.getElementById('modalCalcBtn').onclick = () => {
+                const arv = parseFloat(document.getElementById('modalArv').value) || 0;
+                const diam = parseFloat(document.getElementById('modalDiam').value) || 0;
+                const pikk = parseFloat(document.getElementById('modalPikk').value) || 0;
+                const r = diam / 200;
+                const maht = arv * Math.PI * r * r * pikk;
+                document.getElementById('modalResult').innerHTML = `📦 Kogumaht: ${maht.toFixed(3)} m³`;
+            };
+            document.getElementById('useModalResultBtn').onclick = () => {
+                const resultDiv = document.getElementById('modalResult');
+                const match = resultDiv.innerText.match(/[\d\.]+/);
+                if(match){
+                    const val = parseFloat(match[0]);
+                    const tihuInput = document.getElementById('logTihud');
+                    if(tihuInput) tihuInput.value = val.toFixed(2);
+                    alert("Tihude väärtus lisatud logi vormi!");
+                    modalDiv.remove();
+                } else alert("Arvuta kõigepealt maht!");
+            };
+            document.getElementById('closeModalBtn').onclick = () => modalDiv.remove();
+        }
+        
+        function attachHistoryEvents(){
+            // Kustutamine üksik
+            document.querySelectorAll('.delete-log-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = Number(btn.getAttribute('data-id'));
+                    allLogs = allLogs.filter(l => l.id !== id);
+                    selectedLogIds.delete(id);
+                    saveAll();
+                    showTab('history');
+                });
+            });
+            // Jaga üksikut kirjet
+            document.querySelectorAll('.share-single-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = Number(btn.getAttribute('data-id'));
+                    const log = allLogs.find(l => l.id === id);
+                    if(log) await shareSingleLog(log);
+                });
+            });
+            // Checkboxid
+            document.querySelectorAll('.checkbox-select').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const id = Number(cb.getAttribute('data-id'));
+                    if(cb.checked) selectedLogIds.add(id);
+                    else selectedLogIds.delete(id);
+                });
+            });
+            // Nupp "Saada valitud"
+            const shareSelectedBtn = document.getElementById('shareSelectedBtn');
+            if(shareSelectedBtn){
+                shareSelectedBtn.onclick = async () => {
+                    const selectedLogs = allLogs.filter(l => selectedLogIds.has(l.id));
+                    await shareMultipleLogs(selectedLogs);
+                };
+            }
+            // Kustuta kogu ajalugu
+            const clearAllBtn = document.getElementById('clearAllHistoryBtn');
+            if(clearAllBtn){
+                clearAllBtn.onclick = () => {
+                    if(confirm("Kustuta KÕIK langikirjed? Seda ei saa tagasi võtta!")){
+                        allLogs = [];
+                        selectedLogIds.clear();
+                        saveAll();
+                        showTab('history');
+                    }
+                };
+            }
+        }
+        
+        function attachProfileEvents(){
+            document.getElementById('saveProfileBtn')?.addEventListener('click', () => {
+                if(currentUser){
+                    currentUser.name = document.getElementById('editName').value;
+                    currentUser.email = document.getElementById('editEmail').value;
+                    currentUser.masin = document.getElementById('editMachine').value;
+                    currentUser.tookoht = document.getElementById('editWork').value;
+                    const newPass = document.getElementById('editPassword').value;
+                    if(newPass.trim()) currentUser.password = newPass;
+                    saveAll();
+                    alert("Profiil uuendatud!");
+                    renderMainApp();
+                }
+            });
+            document.getElementById('exportAllBtn')?.addEventListener('click', exportAllLogs);
+            const importFile = document.getElementById('importFileInput');
+            if(importFile){
+                importFile.addEventListener('change', (e) => {
+                    if(e.target.files.length) importLogsFromFile(e.target.files[0]);
+                    e.target.value = '';
+                });
+            }
+            document.getElementById('logoutBtn')?.addEventListener('click', () => {
+                localStorage.removeItem(STORAGE_USER);
+                location.reload();
+            });
+        }
+        
+        // ---------- ÜLDINE RAKENDUSE LOOGIKA ----------
+        function renderMainApp(){
+            const root = document.getElementById('appRoot');
+            root.style.display = 'block';
+            root.innerHTML = `
+                <div class="app-container">
+                    <div class="nav-tabs" id="navTabs">
+                        <button class="tab-btn" data-tab="loadCalc">📦 Koorma maht</button>
+                        <button class="tab-btn" data-tab="logEntry">📝 Langi logi</button>
+                        <button class="tab-btn" data-tab="history">📜 Ajalugu & jagamine</button>
+                        <button class="tab-btn" data-tab="profile">👤 Profiil & varundus</button>
+                    </div>
+                    <div id="loadCalc" class="tab-content">${renderLoadCalc()}</div>
+                    <div id="logEntry" class="tab-content">${renderLogEntry()}</div>
+                    <div id="history" class="tab-content">${renderHistory()}</div>
+                    <div id="profile" class="tab-content">${renderProfile()}</div>
+                </div>
+            `;
+            attachTabEvents();
+            attachCalcEvents();
+            attachLogEvents();
+            attachHistoryEvents();
+            attachProfileEvents();
+            showTab(activeTab);
+        }
+        
+        function attachTabEvents(){
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => showTab(btn.getAttribute('data-tab')));
+            });
+        }
+        
+        function showTab(tabId){
+            activeTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            const tabDiv = document.getElementById(tabId);
+            if(tabDiv) tabDiv.classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                if(b.getAttribute('data-tab') === tabId) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+            if(tabId === 'history'){
+                const hist = document.getElementById('history');
+                if(hist) hist.innerHTML = renderHistory();
+                attachHistoryEvents();
+            }
+            if(tabId === 'logEntry'){
+                const logDiv = document.getElementById('logEntry');
+                if(logDiv) logDiv.innerHTML = renderLogEntry();
+                attachLogEvents();
+            }
+            if(tabId === 'loadCalc'){
+                const loadDiv = document.getElementById('loadCalc');
+                if(loadDiv) loadDiv.innerHTML = renderLoadCalc();
+                attachCalcEvents();
+            }
+            if(tabId === 'profile'){
+                const profDiv = document.getElementById('profile');
+                if(profDiv) profDiv.innerHTML = renderProfile();
+                attachProfileEvents();
+            }
+        }
+        
+        function showAuthScreen(){
+            const root = document.getElementById('appRoot');
+            root.style.display = 'block';
+            root.innerHTML = `
+                <div class="auth-card">
+                    <h2 style="text-align:center;">🌲 MetsaMasin</h2>
+                    <p style="text-align:center;">Registreeru või logi sisse</p>
+                    <div class="form-group"><label>Nimi</label><input id="regName"></div>
+                    <div class="form-group"><label>E-post</label><input id="regEmail"></div>
+                    <div class="form-group"><label>Parool</label><input type="password" id="regPass"></div>
+                    <div class="form-group"><label>Masin (mark/mudel)</label><input id="regMachine"></div>
+                    <div class="form-group"><label>Töökoht / Kool</label><input id="regWork"></div>
+                    <button id="registerBtn">📝 Registreeru & alusta</button>
+                    <hr>
+                    <p style="text-align:center">Juba konto? Logi sisse</p>
+                    <div class="form-group"><input id="loginEmail" placeholder="E-post"><input id="loginPass" type="password" placeholder="Parool" style="margin-top:10px;"></div>
+                    <button id="loginBtn" class="btn-secondary">🔐 Logi sisse</button>
+                </div>
+            `;
+            document.getElementById('registerBtn').onclick = () => {
+                const name = document.getElementById('regName').value.trim();
+                const email = document.getElementById('regEmail').value.trim();
+                const pass = document.getElementById('regPass').value;
+                const machine = document.getElementById('regMachine').value.trim();
+                const work = document.getElementById('regWork').value.trim();
+                if(!name || !email || !pass){ alert("Täida nimi, email ja parool!"); return; }
+                const users = JSON.parse(localStorage.getItem(STORAGE_ALL_USERS) || '[]');
+                if(users.find(u => u.email === email)){ alert("Email juba olemas!"); return; }
+                const newUser = { name, email, password: pass, masin: machine, tookoht: work };
+                users.push(newUser);
+                localStorage.setItem(STORAGE_ALL_USERS, JSON.stringify(users));
+                localStorage.setItem(STORAGE_USER, JSON.stringify(newUser));
+                currentUser = newUser;
+                allLogs = [];
+                localStorage.setItem(STORAGE_LOGS, '[]');
+                renderMainApp();
+            };
+            document.getElementById('loginBtn').onclick = () => {
+                const email = document.getElementById('loginEmail').value.trim();
+                const pass = document.getElementById('loginPass').value;
+                const users = JSON.parse(localStorage.getItem(STORAGE_ALL_USERS) || '[]');
+                const found = users.find(u => u.email === email && u.password === pass);
+                if(found){
+                    localStorage.setItem(STORAGE_USER, JSON.stringify(found));
+                    currentUser = found;
+                    allLogs = JSON.parse(localStorage.getItem(STORAGE_LOGS) || '[]');
+                    renderMainApp();
+                } else alert("Vale e-post või parool");
+            };
+        }
+        
+        // ---------- KÄIVITUS ----------
+        setTimeout(() => {
+            const ld = document.getElementById('loadingScreen');
+            if(ld){
+                ld.style.opacity = '0';
+                setTimeout(() => ld.style.display = 'none', 800);
+            }
+            const savedUser = localStorage.getItem(STORAGE_USER);
+            if(savedUser){
+                try{
+                    currentUser = JSON.parse(savedUser);
+                    allLogs = JSON.parse(localStorage.getItem(STORAGE_LOGS) || '[]');
+                    renderMainApp();
+                } catch(e){ showAuthScreen(); }
+            } else {
+                showAuthScreen();
+            }
+        }, 1500);
+    })();
+</script>
 </body>
 </html>
